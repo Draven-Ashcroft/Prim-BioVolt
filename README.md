@@ -80,22 +80,11 @@ The Miller–Urey experiment tested the **Oparin–Haldane hypothesis** — that
 
 ---
 
-## 🗂️ Part of the BioSim Series
-
-| Repo | Topic |
-|---|---|
-| [Synapse-Simulation](https://github.com/Draven-Solis/Synapse-Simulationzip) | Synaptic transmission |
-| [Cellula-Kinetics](https://github.com/Draven-Solis/Cellula-Kinetics) | Reproductive biology |
-| **Prim-BioVolt** | Origin of life · Miller–Urey |
-
----
-
 ## 👨‍🔬 Author
 
-**Draven Solis**
-PGT Biology Lecturer & Tech Enthusiast
-Deployed via [Netlify](https://www.netlify.com)
-
+**Soren Vale**
+PGT Biology Lecturer 
+MSc.Ag.Entomology
 ---
 
 ## 🙏 Acknowledgements
