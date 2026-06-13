@@ -877,35 +877,212 @@ function drawSparkBolt(){
   if(sparkFrames>0&&sparkFrames%2===0)genBolt();
 }
 
-// ── Draw condenser coils ─────────────────────────────────────────────
+// ── Cooling water coil system ─────────────────────────────────────────
 let condDrops=[];
+let coolDrops=[];
+
+// Condenser geometry shorthand
+// CD = {x:615, y:100, w:42, h:215}
+// Coil lives INSIDE the condenser jacket, inset a few px from each wall
+// 5 coil loops, equally spaced top→bottom
+// Entry stub: exits RIGHT wall at top loop
+// Exit stub:  exits LEFT wall at bottom loop
+
+const NCOILS = 5;
+// inset so coil stays inside jacket walls
+const CX_L = CD.x + 5;         // left  x of coil sweep
+const CX_R = CD.x + CD.w - 5;  // right x of coil sweep
+const CY_TOP = CD.y + 18;       // y of first loop
+const CY_BOT = CD.y + CD.h - 18;// y of last loop
+const COIL_STEP = (CY_BOT - CY_TOP) / (NCOILS - 1); // spacing between loops
+const CORNER_R = 6;             // radius of U-bend corners
+
+// Port positions (stubs exit through the outer jacket wall)
+const CW_IN  = { x: CD.x + CD.w + 10, y: CY_TOP };
+const CW_OUT = { x: CD.x - 10,        y: CY_BOT };
+
+// Build an array of waypoints describing the coil path
+// Pattern: entry stub → loop0(right→left) → bend → loop1(left→right) → bend → … → exit stub
+// Each "loop" is a horizontal run across the condenser width at a given y
+// Each "bend" is a U-turn on alternating sides
+function buildCoilPath(){
+  const pts = [];
+  // entry: from outside right wall → inner right edge at top
+  pts.push({x: CW_IN.x + 24, y: CY_TOP});
+  pts.push({x: CX_R,          y: CY_TOP});
+
+  for(let i = 0; i < NCOILS; i++){
+    const y = CY_TOP + i * COIL_STEP;
+    const goLeft = (i % 2 === 0); // even loops go right→left
+    if(goLeft){
+      // run left
+      pts.push({x: CX_L, y: y});
+      // U-bend on LEFT side going down to next loop (unless last)
+      if(i < NCOILS - 1){
+        const yn = y + COIL_STEP;
+        pts.push({x: CX_L - CORNER_R, y: y});
+        pts.push({x: CX_L - CORNER_R, y: yn});
+        pts.push({x: CX_L,             y: yn});
+      }
+    } else {
+      // run right
+      pts.push({x: CX_R, y: y});
+      // U-bend on RIGHT side going down to next loop (unless last)
+      if(i < NCOILS - 1){
+        const yn = y + COIL_STEP;
+        pts.push({x: CX_R + CORNER_R, y: y});
+        pts.push({x: CX_R + CORNER_R, y: yn});
+        pts.push({x: CX_R,             y: yn});
+      }
+    }
+  }
+  // exit: from inner left edge at bottom → outside left wall
+  pts.push({x: CW_OUT.x, y: CY_BOT});
+  pts.push({x: CW_OUT.x - 24, y: CY_BOT});
+  return pts;
+}
+
+// Pre-build path once (static geometry)
+const COIL_PTS = buildCoilPath();
+
+// Build cumulative arc-length table so we can position drops uniformly
+let COIL_ARCLEN = [];
+let COIL_TOTAL  = 0;
+(function(){
+  COIL_ARCLEN = [0];
+  for(let i = 1; i < COIL_PTS.length; i++){
+    const dx = COIL_PTS[i].x - COIL_PTS[i-1].x;
+    const dy = COIL_PTS[i].y - COIL_PTS[i-1].y;
+    COIL_ARCLEN.push(COIL_ARCLEN[i-1] + Math.sqrt(dx*dx+dy*dy));
+  }
+  COIL_TOTAL = COIL_ARCLEN[COIL_ARCLEN.length-1];
+})();
+
+function coolWaterPos(t){
+  // t in [0,1] → position along coil polyline
+  const target = t * COIL_TOTAL;
+  let i = 1;
+  while(i < COIL_ARCLEN.length - 1 && COIL_ARCLEN[i] < target) i++;
+  const seg = COIL_ARCLEN[i] - COIL_ARCLEN[i-1];
+  const frac = seg > 0 ? (target - COIL_ARCLEN[i-1]) / seg : 0;
+  return {
+    x: lerp(COIL_PTS[i-1].x, COIL_PTS[i].x, frac),
+    y: lerp(COIL_PTS[i-1].y, COIL_PTS[i].y, frac)
+  };
+}
+
+function spawnCoolDrop(){
+  coolDrops.push({ t: 0, spd: 0.0028 + Math.random()*0.002 });
+}
+
+function updateCoolDrops(){
+  if(frame % 22 === 0) spawnCoolDrop();
+  for(let i = coolDrops.length-1; i >= 0; i--){
+    coolDrops[i].t += coolDrops[i].spd * speed;
+    if(coolDrops[i].t >= 1.06) coolDrops.splice(i,1);
+  }
+}
+
+function drawCoolingWaterTube(){
+  // ── Draw the coil tube as a polyline with rounded joins ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(COIL_PTS[0].x, COIL_PTS[0].y);
+  for(let i = 1; i < COIL_PTS.length; i++)
+    ctx.lineTo(COIL_PTS[i].x, COIL_PTS[i].y);
+  // glass tube body — semi-transparent blue
+  ctx.strokeStyle = 'rgba(60,140,220,0.28)';
+  ctx.lineWidth   = 5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+  // inner highlight
+  ctx.strokeStyle = 'rgba(200,240,255,0.10)';
+  ctx.lineWidth   = 1.8;
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Animated water drops — colour shifts icy blue → warm teal/amber as heat absorbed ──
+  coolDrops.forEach(d => {
+    if(d.t <= 0 || d.t >= 1) return;
+    const pos   = coolWaterPos(d.t);
+    const alpha = d.t < 0.04 ? d.t/0.04 : d.t > 0.96 ? (1-d.t)/0.04 : 1;
+    // t=0: icy blue (200,235,255) → t=1: warm amber-teal (255,190,100)
+    const heat = d.t;
+    const cr = Math.round(200 + 55  * heat);   // 200 → 255
+    const cg = Math.round(235 - 45  * heat);   // 235 → 190
+    const cb = Math.round(255 - 155 * heat);   // 255 → 100
+    const midR = Math.round(80  + 100 * heat); // core mid colour
+    const midG = Math.round(170 - 60  * heat);
+    const midB = Math.round(245 - 145 * heat);
+    const shadowR = Math.round(90  + 120 * heat);
+    const shadowG = Math.round(190 - 60  * heat);
+    const shadowB = Math.round(255 - 155 * heat);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.88;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 2.8, 0, Math.PI*2);
+    const dg = ctx.createRadialGradient(pos.x-0.6, pos.y-0.6, 0.4, pos.x, pos.y, 2.8);
+    dg.addColorStop(0,    `rgba(${cr},${cg},${cb},0.98)`);
+    dg.addColorStop(0.45, `rgba(${midR},${midG},${midB},0.80)`);
+    dg.addColorStop(1,    `rgba(30,60,100,0.0)`);
+    ctx.fillStyle  = dg;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor= `rgba(${shadowR},${shadowG},${shadowB},0.55)`;
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
 function drawCondenser(){
   // outer jacket (water-cooled)
   const jg=ctx.createLinearGradient(CD.x-10,0,CD.x+CD.w+10,0);
   jg.addColorStop(0,'#0a2a4a88');jg.addColorStop(.5,'#143a5a55');jg.addColorStop(1,'#0a2a4a88');
   ctx.save();ctx.beginPath();ctx.roundRect(CD.x-10,CD.y-6,CD.w+20,CD.h+12,8);
   ctx.fillStyle=jg;ctx.fill();ctx.strokeStyle='#1e4060';ctx.lineWidth=1.5;ctx.stroke();
-  // inner tube
+  // inner tube (gas path)
   glassRect(CD.x,CD.y,CD.w,CD.h,5,.08);
-  // coil lines suggesting spiral
-  for(let i=0;i<8;i++){
-    const y=CD.y+15+i*24;
-    ctx.save();ctx.beginPath();ctx.moveTo(CD.x+4,y);ctx.lineTo(CD.x+CD.w-4,y);
-    ctx.strokeStyle='rgba(100,160,220,.25)';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
-  }
-  ctx.save();ctx.font='bold 9px monospace';ctx.fillStyle='#4080a0';ctx.textAlign='center';
+
+  // ── Cooling water coil tube + animated drops ──
+  drawCoolingWaterTube();
+
+  // ── Cool Water In port stub (upper-right) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(CD.x+CD.w+10, CW_IN.y);
+  ctx.lineTo(CD.x+CD.w+26, CW_IN.y);
+  ctx.strokeStyle='#1e4a6a'; ctx.lineWidth=8; ctx.lineCap='round'; ctx.stroke();
+  ctx.strokeStyle='rgba(140,210,255,0.15)'; ctx.lineWidth=2.5; ctx.stroke();
   ctx.restore();
-  // Condenser In — small badge at top of condenser, anchored above
+
+  // ── Cool Water Out port stub (lower-left) ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(CD.x-10, CW_OUT.y);
+  ctx.lineTo(CD.x-26, CW_OUT.y);
+  ctx.strokeStyle='#1e4a6a'; ctx.lineWidth=8; ctx.lineCap='round'; ctx.stroke();
+  ctx.strokeStyle='rgba(140,210,255,0.15)'; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.restore();
+
+  // ── Callout: Condenser In (top, gas inlet label — keep) ──
   callout(['❄ Condenser In','Cold water jacket'],
     CD.x + CD.w/2, CD.y - 6,
     {anchor:'bottom', accentCol:'#4a9fd4', bgCol:'#081420', tailLen:8,
-     font:'9px \'Segoe UI\'', boldFont:'bold 10px \'Segoe UI\'', maxW:120, pad:7, lineH:13});
-  // Warm Out — on lower condenser, anchored to its left to avoid UT overlap
-  callout(['Warm Out','Heated water exits'],
-    CD.x - 8, CD.y + CD.h - 30,
-    {anchor:'left', accentCol:'#70a0c0', bgCol:'#081420', tailLen:10,
-     font:'9px \'Segoe UI\'', boldFont:'bold 10px \'Segoe UI\'', maxW:118, pad:7, lineH:13});
-  boldLabel('CONDENSER',CD.x+CD.w/2,CD.y-20,'#5a8aaa',10);
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:140, pad:8, lineH:15});
+
+  // ── Callout: Cool Water In (upper-right port) ──
+  callout(['💧 Cool Water In','Cooling jacket inlet'],
+    CD.x + CD.w + 28, CW_IN.y,
+    {anchor:'right', accentCol:'#4a9fd4', bgCol:'#081420', tailLen:8,
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:148, pad:8, lineH:15});
+
+  // ── Callout: Cool Water Out (lower-left port) ──
+  callout(['💧 Cool Water Out','Exits jacket warm'],
+    CD.x - 28, CW_OUT.y + 38,
+    {anchor:'left', accentCol:'#70a0c0', bgCol:'#081420', tailLen:8,
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:148, pad:8, lineH:15});
+
+  boldLabel('CONDENSER',CD.x+CD.w/2,CD.y-20,'#5a8aaa',11);
 }
 
 // ── Draw glass pipe collar/port where tube meets a vessel ─────────────
@@ -1044,7 +1221,7 @@ function drawApparatus(){
   callout(['Primordial Ocean','~100°C · H₂O vapourises'],
     BF.cx, BF.cy - BF.ry - 8,
     {anchor:'bottom', accentCol:'#ff7030', bgCol:'#1a0e08', tailLen:10,
-     font:'10px \'Segoe UI\'', boldFont:'bold 11px \'Segoe UI\'', maxW:152});
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:162, pad:8, lineH:15});
 
   // ── SPARK CHAMBER ────────────────────────────────────────────────
   glassRect(SC.x,SC.y,SC.w,SC.h,10,.10);
@@ -1063,15 +1240,27 @@ function drawApparatus(){
   callout(['Atmosphere Mix','CH₄  NH₃  H₂  H₂O'],
     SC.x + 70, SC.y - 4,
     {anchor:'bottom', accentCol:'#50d890', bgCol:'#081808', tailLen:10,
-     font:'10px \'Segoe UI\'', boldFont:'bold 11px \'Segoe UI\'', maxW:138});
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:148, pad:8, lineH:15});
 
   // ── CONDENSER ────────────────────────────────────────────────────
   drawCondenser();
   ctx.save();
   condDrops.forEach(d=>{
-    ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
-    ctx.fillStyle='rgba(100,180,240,.7)';ctx.fill();
+    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(100,180,240,.7)'; ctx.fill();
   });
+  // Fixed condensate label — centred to the right of the inner tube, mid-height
+  if(condDrops.length > 0){
+    const lx = CD.x + CD.w + 6;
+    const ly = CD.y + CD.h * 0.52;
+    ctx.font = "bold 9px 'Segoe UI'";
+    ctx.textAlign = 'left';
+    const tw = ctx.measureText('↓ condensate').width;
+    ctx.fillStyle = 'rgba(6,16,28,0.72)';
+    ctx.fillRect(lx - 2, ly - 10, tw + 7, 14);
+    ctx.fillStyle = '#7ac8f0';
+    ctx.fillText('↓ condensate', lx, ly);
+  }
   ctx.restore();
 
   // ── U-TRAP ───────────────────────────────────────────────────────
@@ -1093,12 +1282,11 @@ function drawApparatus(){
   callout(['Organic Compounds','Accumulate here'],
     UT.cx, UT.cy + UT.ry + 6,
     {anchor:'top', accentCol:'#50d890', bgCol:'#081808', tailLen:10,
-     font:'10px \'Segoe UI\'', boldFont:'bold 11px \'Segoe UI\'', maxW:148});
+     font:'11px \'Segoe UI\'', boldFont:'bold 12px \'Segoe UI\'', maxW:158, pad:8, lineH:15});
 
   // ── FLOW ARROWS ──────────────────────────────────────────────────
   ctx.save();ctx.fillStyle='#2a4a68';ctx.font='9px monospace';ctx.textAlign='center';
   ctx.fillText('↑ vapour',BF_OUT.x - 38, BF_OUT.y - 28);
-  ctx.fillText('↓ condensate',CD.x+CD.w/2+26,CD.y+CD.h*.5);
   ctx.fillText('← return',BF.cx + BF.rx + 55, BF_IN.y + 45);
   ctx.restore();
 
@@ -1654,6 +1842,7 @@ function update(){
   if(autoMode&&heaterOn&&frame%Math.max(1,Math.round(55/speed))===0)fireSpark();
   simTime+=speed*(1/60)*(24/60); // sim hours, 1 real second ≈ 24 sim min at ×1
   document.getElementById('sTime').textContent=simTime.toFixed(0)+'h';
+  updateCoolDrops();
   updateTimeline();
   updateOscope();
   updateGauges();
@@ -1680,7 +1869,7 @@ function loop(){update();render();requestAnimationFrame(loop);}
 // ── Init ─────────────────────────────────────────────────────────────
 function reset(){
   aminoCount=0;totalSparks=0;waterCycles=0;simTime=0;sparkFrames=0;
-  trapColor=0;trapMols=[];sparkBolt=[];sparkRipples=[];condDrops=[];steamBubbles=[];smokeParticles=[];
+  trapColor=0;trapMols=[];sparkBolt=[];sparkRipples=[];condDrops=[];coolDrops=[];steamBubbles=[];smokeParticles=[];
   detectedAA.clear();autoMode=false;
   document.getElementById('btnAuto').textContent='▶ Auto';
   document.getElementById('btnAuto').classList.remove('active');
