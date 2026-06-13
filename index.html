@@ -1103,8 +1103,188 @@ function pipePort(x, y, angle, pw){
 }
 
 // ── Draw apparatus ───────────────────────────────────────────────────
+// ── Retort stand + ring clamps ───────────────────────────────────────
+function drawRetortStand(){
+  ctx.save();
+
+  // ── Vertical rod gradient (horizontal spread, correct x span) ──
+  function rodGradV(cx){
+    const rw = 5;
+    const g = ctx.createLinearGradient(cx - rw/2, 0, cx + rw/2, 0);
+    g.addColorStop(0,   '#1a1a1a');
+    g.addColorStop(0.3, '#5a5a5a');
+    g.addColorStop(0.65,'#7a7a7a');
+    g.addColorStop(1,   '#2a2a2a');
+    return g;
+  }
+
+  // ── Arm gradient (horizontal, correctly spanning the arm) ──
+  function armGrad(x1, x2){
+    const g = ctx.createLinearGradient(x1, 0, x2, 0);
+    g.addColorStop(0,   '#1a1a1a');
+    g.addColorStop(0.3, '#5a5a5a');
+    g.addColorStop(0.65,'#7a7a7a');
+    g.addColorStop(1,   '#2a2a2a');
+    return g;
+  }
+
+  // ── Base plate — sits at bottom of canvas, realistic width ──
+  function drawBase(cx, baseY, w){
+    // shadow under base
+    ctx.beginPath();
+    ctx.ellipse(cx, baseY + 9, w*0.45, 4, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+    // base body
+    const bg = ctx.createLinearGradient(cx - w/2, baseY, cx + w/2, baseY);
+    bg.addColorStop(0,   '#1a1a1a');
+    bg.addColorStop(0.25,'#505050');
+    bg.addColorStop(0.5, '#686868');
+    bg.addColorStop(0.75,'#505050');
+    bg.addColorStop(1,   '#1a1a1a');
+    ctx.beginPath();
+    ctx.roundRect(cx - w/2, baseY, w, 7, [2,2,3,3]);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#707070'; ctx.lineWidth = 0.8; ctx.stroke();
+    // top edge highlight
+    ctx.beginPath();
+    ctx.moveTo(cx - w/2 + 4, baseY + 1.5);
+    ctx.lineTo(cx + w/2 - 4, baseY + 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.stroke();
+    // rubber feet
+    [-w*0.32, w*0.32].forEach(ox => {
+      ctx.beginPath(); ctx.ellipse(cx + ox, baseY + 7, 5, 2.5, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#181818'; ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 0.5; ctx.stroke();
+    });
+  }
+
+  // ── Vertical rod ──
+  function drawRod(cx, topY, botY){
+    const rw = 5;
+    // rod shadow
+    ctx.beginPath();
+    ctx.roundRect(cx - rw/2 + 2, topY + 2, rw, botY - topY, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    // rod body
+    ctx.beginPath();
+    ctx.roundRect(cx - rw/2, topY, rw, botY - topY, 2);
+    ctx.fillStyle = rodGradV(cx); ctx.fill();
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 0.6; ctx.stroke();
+    // highlight stripe
+    ctx.beginPath();
+    ctx.roundRect(cx - rw/2 + 1, topY + 6, 1.5, botY - topY - 12, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill();
+    // rod cap
+    ctx.beginPath();
+    ctx.ellipse(cx, topY, rw * 0.7, 2.5, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#888'; ctx.fill();
+  }
+
+  // ── Horizontal arm extending from rod to flask ──
+  function drawArm(rodX, armY, flaskCX){
+    const armDir  = flaskCX > rodX ? 1 : -1;
+    // arm reaches just to the near edge of the ring (ring is flush against flask)
+    const ringRX  = 8; // half-width of ring in side view
+    const armEndX = flaskCX - armDir * ringRX;
+    const aw = 4;
+
+    // arm shadow
+    ctx.beginPath();
+    ctx.roundRect(
+      Math.min(rodX, armEndX) + 1, armY - aw/2 + 2,
+      Math.abs(armEndX - rodX), aw, 2
+    );
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+
+    // arm body
+    const ag = armGrad(Math.min(rodX, armEndX), Math.max(rodX, armEndX));
+    ctx.beginPath();
+    ctx.roundRect(
+      Math.min(rodX, armEndX), armY - aw/2,
+      Math.abs(armEndX - rodX), aw, 2
+    );
+    ctx.fillStyle = ag; ctx.fill();
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 0.5; ctx.stroke();
+    // highlight
+    ctx.beginPath();
+    ctx.moveTo(Math.min(rodX,armEndX)+4, armY - aw/2 + 1);
+    ctx.lineTo(Math.max(rodX,armEndX)-4, armY - aw/2 + 1);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth=1; ctx.stroke();
+
+    // clamp collar at rod
+    ctx.beginPath();
+    ctx.roundRect(rodX - 7, armY - 6, 14, 12, 2);
+    ctx.fillStyle = '#383838'; ctx.fill();
+    ctx.strokeStyle = '#686868'; ctx.lineWidth = 0.8; ctx.stroke();
+    // collar bolt
+    ctx.beginPath(); ctx.arc(rodX, armY + 6, 2, 0, Math.PI*2);
+    ctx.fillStyle = '#777'; ctx.fill();
+  }
+
+  // ── Ring clamp around flask equator ──
+  // In side-view a ring appears as a thin horizontal ellipse (edge-on)
+  // ringY sits at flask equator, ringRX slightly larger than flask
+  function drawRing(flaskCX, flaskCY, flaskRX, flaskRY){
+    // Ring sits at equator of flask — widest circumference
+    const ringY  = flaskCY + flaskRY * 0.08; // very slightly below true centre
+    const ringRX = flaskRX + 6;              // just outside flask wall
+    const ringRY = 5;                        // thin in side-view (edge-on circle)
+    const lw     = 4.5;
+
+    // Back arc (darker, behind flask) — bottom half of ellipse
+    ctx.beginPath();
+    ctx.ellipse(flaskCX, ringY, ringRX, ringRY, 0, 0, Math.PI);
+    ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = lw; ctx.stroke();
+
+    // Front arc (lighter, in front of flask) — top half of ellipse
+    ctx.beginPath();
+    ctx.ellipse(flaskCX, ringY, ringRX, ringRY, 0, Math.PI, Math.PI*2);
+    ctx.strokeStyle = '#545454'; ctx.lineWidth = lw; ctx.stroke();
+    // front highlight
+    ctx.beginPath();
+    ctx.ellipse(flaskCX, ringY, ringRX, ringRY, 0, Math.PI, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Tightening bolt — appears at rightmost point of ring
+    const boltX = flaskCX + ringRX;
+    ctx.beginPath(); ctx.arc(boltX, ringY, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = '#505050'; ctx.fill();
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 0.7; ctx.stroke();
+    // bolt slot
+    ctx.beginPath();
+    ctx.moveTo(boltX - 2, ringY); ctx.lineTo(boltX + 2, ringY);
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 0.8; ctx.stroke();
+  }
+
+  // ════ STAND 1 — Boiling Flask ════
+  // Rod on LEFT of flask; base sits at bottom of canvas area (H=520)
+  const BF_ROD_X   = BF.cx - BF.rx - 16;
+  const BF_BASE_Y  = 504;                       // near bottom of canvas
+  const BF_ROD_TOP = BF.cy - BF.ry - 20;       // just above flask top
+  drawBase(BF_ROD_X, BF_BASE_Y, 46);
+  drawRod(BF_ROD_X, BF_ROD_TOP, BF_BASE_Y);
+  drawArm(BF_ROD_X, BF.cy + BF.ry * 0.08, BF.cx);
+  drawRing(BF.cx, BF.cy, BF.rx, BF.ry);
+
+  // ════ STAND 2 — Collection Flask (U-trap) ════
+  // Rod on RIGHT of flask
+  const UT_ROD_X   = UT.cx + UT.rx + 16;
+  const UT_BASE_Y  = 504;
+  const UT_ROD_TOP = UT.cy - UT.ry - 16;
+  drawBase(UT_ROD_X, UT_BASE_Y, 42);
+  drawRod(UT_ROD_X, UT_ROD_TOP, UT_BASE_Y);
+  drawArm(UT_ROD_X, UT.cy + UT.ry * 0.08, UT.cx);
+  drawRing(UT.cx, UT.cy, UT.rx, UT.ry);
+
+  ctx.restore();
+}
+
+
 function drawApparatus(){
   const PW=11, PC='#1a3a58';
+
+  // ── RETORT STANDS (drawn first, behind everything) ─────────────────
+  drawRetortStand();
 
   // Connection points defined globally above
 // ── PIPES (drawn behind flasks) ────────────────────────────────────
