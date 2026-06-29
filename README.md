@@ -54,15 +54,6 @@ Interactive scientific visualization of the **Miller–Urey Experiment (1953)**,
 
 ---
 
-## 🛠️ Technologies
-
-- HTML5
-- CSS3
-- JavaScript (ES6)
-- HTML5 Canvas API
-
----
-
 ## 📜 License
 
 Licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
