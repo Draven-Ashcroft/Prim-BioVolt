@@ -83,9 +83,9 @@ Licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
 
 Special thanks to the AI tools that accelerated development:
 
-- **OpenAI (ChatGPT)** — scientific review, debugging, and implementation
-- **Anthropic Claude** — core implementation and optimization
-- **Google Gemini** — concept exploration
+- **OpenAI** — scientific review, debugging, and implementation
+- ** Claude** — core implementation and optimization
+- **Gemini** — concept exploration
 - **Moonshot AI** — debugging and refinement
 - **DeepSeek** — early drafts and experimentation
 
