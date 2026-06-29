@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/repo-banner.png" alt="Prim-BioVolt Banner" width="100%">
+  <img src="assets/repository-banner.png" alt="Prim-BioVolt Banner" width="100%">
 </p>
 
 # ⚡ Prim-BioVolt
