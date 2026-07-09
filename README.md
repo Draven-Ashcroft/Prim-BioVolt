@@ -1,4 +1,4 @@
-![PRIM-BIOVOLT Banner](assets/repo-banner.png)
+![PRIM-BIOVOLT Banner](assets/repository-banner.png)
 
 # PRIM-BIOVOLT
 
