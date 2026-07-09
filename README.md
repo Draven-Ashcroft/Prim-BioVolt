@@ -1,91 +1,29 @@
-<p align="center">
-  <img src="assets/repository-banner.png" alt="Prim-BioVolt Banner" width="100%">
-</p>
+![PRIM-BIOVOLT Banner](assets/repo-banner.png)
 
-# ⚡ Prim-BioVolt
+# PRIM-BIOVOLT
 
-<p align="center">
-
-### 🧪 Miller–Urey Simulator
-
-Interactive scientific visualization of the **Miller–Urey Experiment (1953)**, demonstrating the prebiotic synthesis of amino acids under simulated early Earth conditions.
-
-</p>
+**Miller–Urey Experiment Simulator**
 
 ---
 
-## 📖 Overview
+### Overview
+**Prim-BioVolt** is a high-fidelity digital simulation of the classic Miller–Urey prebiotic synthesis experiment. This tool provides a controlled environment to observe the transformation of basic atmospheric gases into complex organic compounds through high-voltage electrical discharge.
 
-**Prim-BioVolt** is an open-source educational simulation of the historic **Miller–Urey Experiment**. Built with HTML5 Canvas, it recreates the experimental apparatus and chemical processes that demonstrated how organic molecules could arise from simple inorganic gases on primordial Earth.
+### Key Features
+*   **Experimental Accuracy**: Mimics the 7-day chemical synthesis cycle.
+*   **Atmospheric Control**: Models interactions of $CH_4$, $NH_3$, $H_2$, and $H_2O$.
+*   **Visual Schematic**: Real-time flow diagram of boiling, condensation, and spark discharge processes.
+*   **Minimalist Interface**: Designed for rapid research application and educational demonstration.
 
----
-
-## ✨ Features
-
-- Interactive Miller–Urey apparatus
-- Electric spark discharge simulation
-- Animated boiling, condensation, and circulation
-- Real-time experiment controls
-- Amino acid detection and visualization
-- Responsive, browser-based interface
-- Classroom-ready educational tool
-
----
-
-## 🧬 Simulation Includes
-
-- Primordial ocean (boiling flask)
-- Spark discharge chamber
-- Condenser
-- Organic compound trap
-- Early Earth atmosphere (H₂O, CH₄, NH₃ & H₂)
-- Amino acid formation
-- Seven-day experimental progression
+### Technical Parameters
+*   **Discharge**: 60,000V Electrical Spark
+*   **Process**: Prebiotic Synthesis
+*   **Duration**: 7-Day Scaling
+*   **License**: GPL-3.0
 
 ---
 
-## 🎓 Built For
+### About the Author
+**Draven Ashcroft** | Bio-Lecturer | DIPS Chain of Institutions
 
-- Class XII Biology
-- Origin of Life
-- Molecular Biology
-- Biochemistry
-- Interactive Science Education
-
----
-
-## 📜 License
-
-Licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
-
----
-
-## 👨‍🏫 Author
-
-**Draven Ashcroft**
-
-**M.Sc. Agricultural Entomology**  
-**ASRB–NET Qualified**  
-**DIPS Chain of Institutions, Tanda**
-
----
-
-## 🙏 Acknowledgements
-
-Special thanks to the AI tools that accelerated development:
-
-- **OpenAI** — scientific review, debugging, and implementation
-- **Claude** — core implementation and optimization
-- **Gemini** — concept exploration
-- **Moonshot AI** — debugging and refinement
-- **DeepSeek** — early drafts and experimentation
-
----
-
-<p align="center">
-
-## ⚡ Prim-BioVolt
-
-### *Where Lightning Sparked the Chemistry of Life.*
-
-</p>
+*This project is dedicated to the advancement of computational biology and experimental simulation.*
